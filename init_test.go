@@ -40,15 +40,15 @@ func getFileNames() []string {
 }
 
 type SchemaTest struct {
-	Description string         `json:"description"`
-	Schema      interface{}    `json:"schema"`
-	Tests       []*SchemaTesty `json:"tests"`
+	Description string
+	Schema      interface{}
+	Tests       []*SchemaTesty
 }
 
 type SchemaTesty struct {
-	Description string      `json:"description"`
-	Data        interface{} `json:"data"`
-	Valid       bool        `json:"valid"`
+	Description string
+	Data        interface{}
+	Valid       bool
 }
 
 func buildTests(t *testing.T) []Test {

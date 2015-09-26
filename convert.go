@@ -15,10 +15,15 @@
 package jsonschema
 
 import (
+	"encoding/json"
 	"github.com/katydid/katydid/relapse/ast"
 )
 
 //TODO
 func ConvertDraft4(jsonSchema []byte) (*relapse.Grammar, error) {
+	schema := &Schema{}
+	if err := json.Unmarshal(jsonSchema, schema); err != nil {
+		panic(err)
+	}
 	return relapse.NewGrammar(map[string]*relapse.Pattern{"main": relapse.NewEmptySet()}), nil
 }
