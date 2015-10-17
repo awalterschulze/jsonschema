@@ -14,6 +14,17 @@
 
 package jsonschema
 
+import (
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"log"
+)
+
+func init() {
+	log.SetFlags(log.Lshortfile)
+}
+
 /*
 {
     "id": "http://json-schema.org/draft-04/schema#",
@@ -167,97 +178,254 @@ package jsonschema
 }
 */
 type Schema struct {
-	Id               *string
-	Schema           *string
-	Title            *string
-	Description      *string
-	Default          interface{}
-	MultipleOf       *float64
-	Maximum          *float64
-	ExclusiveMaximum bool
-	Minimum          *float64
-	ExclusiveMinimum bool
-	MaxLength        *uint64
-	MinLength        uint64
-	Pattern          *string
-	/*
-	   "anyOf": [
-	       { "type": "boolean" },
-	       { "$ref": "#" }
-	   ],
-	   "default": {}
-	*/
-	AdditionalItems interface{}
-	/*
-	   "anyOf": [
-	       { "$ref": "#" },
-	       { "$ref": "#/definitions/schemaArray" }
-	   ],
-	   "default": {}
-	*/
-	Items         interface{}
-	MaxItems      *uint64
-	MinItems      uint64
-	UniqueItems   bool
-	MaxProperties *uint64
-	MinProperties uint64
-	Required      []string
-	/*
-	   "anyOf": [
-	       { "type": "boolean" },
-	       { "$ref": "#" }
-	   ],
-	   "default": {}
-	*/
-	AdditionalProperties interface{}
+	Id                   *string
+	Schema               *string `json:"$schema"`
+	Title                *string
+	Description          *string
+	Default              interface{}
+	MultipleOf           *float64
+	Maximum              *float64
+	ExclusiveMaximum     bool
+	Minimum              *float64
+	ExclusiveMinimum     bool
+	MaxLength            *uint64
+	MinLength            uint64
+	Pattern              *string
+	AdditionalItems      *Additional
+	Items                *Items
+	MaxItems             *uint64
+	MinItems             uint64
+	UniqueItems          bool
+	MaxProperties        *uint64
+	MinProperties        uint64
+	Required             []string
+	AdditionalProperties *Additional
 	/*
 	   "type": "object",
 	   "additionalProperties": { "$ref": "#" },
 	   "default": {}
 	*/
-	Definitions interface{}
+	//http://json-schema.org/latest/json-schema-validation.html#anchor94
+	//  This keyword's value MUST be an object. Each member value of this object MUST be a valid JSON Schema.
+	Definitions map[string]*Schema
 	/*
 	   "type": "object",
 	   "additionalProperties": { "$ref": "#" },
 	   "default": {}
 	*/
-	Properties interface{}
+	//http://json-schema.org/latest/json-schema-validation.html#anchor64
+	//  The value of "properties" MUST be an object. Each value of this object MUST be an object, and each object MUST be a valid JSON Schema.
+	Properties map[string]*Schema
 	/*
 	   "type": "object",
 	   "additionalProperties": { "$ref": "#" },
 	   "default": {}
 	*/
-	PatternProperties interface{}
-	/*
-	   "type": "object",
-	   "additionalProperties": {
-	       "anyOf": [
-	           { "$ref": "#" },
-	           { "$ref": "#/definitions/stringArray" }
-	       ]
-	   }
-	*/
-	Dependencies interface{}
+	//http://json-schema.org/latest/json-schema-validation.html#anchor64
+	//  The value of "patternProperties" MUST be an object. Each property name of this object SHOULD be a valid regular expression, according to the ECMA 262 regular expression dialect. Each property value of this object MUST be an object, and each object MUST be a valid JSON Schema.
+	PatternProperties map[string]*Schema
+	Dependencies      *Dependencies
 	/*
 	   "type": "array",
 	   "minItems": 1,
 	   "uniqueItems": true
 	*/
-	Enum interface{}
-	/*
-	   "anyOf": [
-	       { "$ref": "#/definitions/simpleTypes" },
-	       {
-	           "type": "array",
-	           "items": { "$ref": "#/definitions/simpleTypes" },
-	           "minItems": 1,
-	           "uniqueItems": true
-	       }
-	   ]
-	*/
-	Type  interface{}
+	Enum  []interface{}
+	Type  *Type
 	AllOf []*Schema
 	AnyOf []*Schema
 	OneOf []*Schema
 	Not   *Schema
+}
+
+/*
+   "anyOf": [
+       { "type": "boolean" },
+       { "$ref": "#" }
+   ],
+   "default": {}
+*/
+//http://json-schema.org/latest/json-schema-validation.html#anchor37
+//  The value of "additionalItems" MUST be either a boolean or an object. If it is an object, this object MUST be a valid JSON Schema.
+//http://json-schema.org/latest/json-schema-validation.html#anchor49
+//  The value of "additionalProperties" MUST be a boolean or an object. If it is an object, it MUST also be a valid JSON Schema.
+type Additional struct {
+	Bool   *bool
+	Schema *Schema
+}
+
+func (this *Additional) UnmarshalJSON(buf []byte) error {
+	var b bool
+	dec := json.NewDecoder(bytes.NewBuffer(buf))
+	if err := dec.Decode(&b); err == nil {
+		this = &Additional{Bool: &b}
+		return nil
+	}
+	s := &Schema{}
+	if err := json.Unmarshal(buf, s); err != nil {
+		log.Printf("%v", err)
+		return err
+	}
+	this = &Additional{Schema: s}
+	return nil
+}
+
+/*
+   "anyOf": [
+       { "$ref": "#" },
+       { "$ref": "#/definitions/schemaArray" }
+   ],
+   "default": {}
+*/
+//http://json-schema.org/latest/json-schema-validation.html#anchor37
+//  The value of "items" MUST be either an object or an array. If it is an object, this object MUST be a valid JSON Schema. If it is an array, items of this array MUST be objects, and each of these objects MUST be a valid JSON Schema.
+type Items []*Schema
+
+func (this *Items) UnmarshalJSON(buf []byte) error {
+	schemas := []*Schema{}
+	var s *Schema
+	if err := json.Unmarshal(buf, &s); err == nil {
+		schemas = append(schemas, s)
+		*this = schemas
+		return nil
+	}
+	if err := json.Unmarshal(buf, &schemas); err != nil {
+		log.Printf("%v input %s", err, string(buf))
+		return err
+	}
+	*this = schemas
+	return nil
+}
+
+/*
+   "type": "object",
+   "additionalProperties": {
+       "anyOf": [
+           { "$ref": "#" },
+           { "$ref": "#/definitions/stringArray" }
+       ]
+   }
+*/
+//http://json-schema.org/latest/json-schema-validation.html#anchor70
+//  This keyword's value MUST be an object. Each value of this object MUST be either an object or an array.
+//  If the value is an object, it MUST be a valid JSON Schema. This is called a schema dependency.
+//  If the value is an array, it MUST have at least one element. Each element MUST be a string, and elements in the array MUST be unique. This is called a property dependency.
+type Dependencies map[string]*Dependency
+
+type Dependency struct {
+	Schema   *Schema
+	Property []string
+}
+
+func (this *Dependency) UnmarshalJSON(buf []byte) error {
+	var s *Schema
+	if err := json.Unmarshal(buf, &s); err == nil {
+		this = &Dependency{Schema: s}
+		return nil
+	}
+	var ss []string
+	dec := json.NewDecoder(bytes.NewBuffer(buf))
+	if err := dec.Decode(&ss); err != nil {
+		log.Printf("%v input %s", err, string(buf))
+		return err
+	}
+	this = &Dependency{Property: ss}
+	checkUnique := make(map[string]struct{})
+	for _, s := range this.Property {
+		if _, ok := checkUnique[s]; ok {
+			err := fmt.Errorf("duplicate found in property dependency list %s", s)
+			log.Printf("%v", err)
+			return err
+		}
+		checkUnique[s] = struct{}{}
+	}
+	return nil
+}
+
+/*
+"anyOf": [
+    { "$ref": "#/definitions/simpleTypes" },
+    {
+        "type": "array",
+        "items": { "$ref": "#/definitions/simpleTypes" },
+        "minItems": 1,
+        "uniqueItems": true
+    }
+]
+*/
+type Type []SimpleType
+
+func (this *Type) UnmarshalJSON(buf []byte) error {
+	this = &Type{}
+	t := []SimpleType{}
+	decs := json.NewDecoder(bytes.NewBuffer(buf))
+	var s string
+	if err := decs.Decode(&s); err == nil {
+		simpleType, err := newSimpleType(s)
+		if err != nil {
+			log.Printf("%v", err)
+			return err
+		}
+		t = append(t, simpleType)
+		*this = t
+		return nil
+	}
+	var ss []string
+	decss := json.NewDecoder(bytes.NewBuffer(buf))
+	if err := decss.Decode(&ss); err != nil {
+		log.Printf("%v", err)
+		return err
+	}
+	simpleTypes := make(map[string]struct{})
+	for _, s := range ss {
+		simpleType, err := newSimpleType(s)
+		if err != nil {
+			log.Printf("%v", err)
+			return err
+		}
+		if _, ok := simpleTypes[s]; ok {
+			err := fmt.Errorf("type alternatives are not unique, duplicate %s found", simpleType)
+			log.Printf("%v", err)
+			return err
+		}
+		simpleTypes[s] = struct{}{}
+		t = append(t, simpleType)
+	}
+	*this = t
+	return nil
+}
+
+type SimpleType string
+
+const (
+	TypeUnknown = SimpleType("unknown")
+	TypeArray   = SimpleType("array")
+	TypeBoolean = SimpleType("boolean")
+	TypeInteger = SimpleType("integer")
+	TypeNull    = SimpleType("null")
+	TypeNumber  = SimpleType("number")
+	TypeObject  = SimpleType("object")
+	TypeString  = SimpleType("string")
+)
+
+func newSimpleType(s string) (SimpleType, error) {
+	switch s {
+	case "array":
+		return TypeArray, nil
+	case "boolean":
+		return TypeBoolean, nil
+	case "integer":
+		return TypeInteger, nil
+	case "null":
+		return TypeNull, nil
+	case "number":
+		return TypeNumber, nil
+	case "object":
+		return TypeObject, nil
+	case "string":
+		return TypeString, nil
+	}
+	err := fmt.Errorf("unknown simpletype %s", s)
+	log.Printf("%v", err)
+	return TypeUnknown, err
 }

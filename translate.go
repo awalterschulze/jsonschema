@@ -20,7 +20,7 @@ import (
 )
 
 //TODO
-func ConvertDraft4(jsonSchema []byte) (*relapse.Grammar, error) {
+func TranslateDraft4(jsonSchema []byte) (*relapse.Grammar, error) {
 	schema := &Schema{}
 	if err := json.Unmarshal(jsonSchema, schema); err != nil {
 		panic(err)

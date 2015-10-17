@@ -33,13 +33,13 @@ func catch(f func() bool) (v bool, err error) {
 func TestDraft4(t *testing.T) {
 	tests := buildTests(t)
 	t.Logf("number of tests %d", len(tests))
-	s := json.NewJsonScanner()
+	s := json.NewJsonParser()
 	for _, test := range tests {
 		t.Logf(test.Description)
 		if err := s.Init(test.Data); err != nil {
 			panic(err)
 		}
-		g, err := ConvertDraft4(test.Schema)
+		g, err := TranslateDraft4(test.Schema)
 		if err != nil {
 			t.Errorf(test.Description + ": failed to convert:" + err.Error())
 		}
