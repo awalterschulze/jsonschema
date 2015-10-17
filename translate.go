@@ -16,6 +16,7 @@ package jsonschema
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/katydid/katydid/relapse/ast"
 )
 
@@ -25,5 +26,41 @@ func TranslateDraft4(jsonSchema []byte) (*relapse.Grammar, error) {
 	if err := json.Unmarshal(jsonSchema, schema); err != nil {
 		panic(err)
 	}
-	return relapse.NewGrammar(map[string]*relapse.Pattern{"main": relapse.NewEmptySet()}), nil
+	refs, err := translate(schema)
+	if err != nil {
+		return nil, err
+	}
+	return relapse.NewGrammar(refs), nil
+}
+
+func translate(schema *Schema) (relapse.RefLookup, error) {
+	if schema.Id != nil {
+		return nil, fmt.Errorf("id not supported")
+	}
+	if schema.Default != nil {
+		return nil, fmt.Errorf("default not supported")
+	}
+	if schema.HasNumericConstraints() {
+		return nil, fmt.Errorf("numeric not supported")
+	}
+	if schema.HasStringConstraints() {
+		return nil, fmt.Errorf("string not supported")
+	}
+	if schema.HasArrayConstraints() {
+		return nil, fmt.Errorf("array not supported")
+	}
+	if schema.HasObjectConstraints() {
+		return nil, fmt.Errorf("object not supported")
+	}
+	if schema.HasInstanceConstraints() {
+		return nil, fmt.Errorf("instance not supported")
+	}
+
+	if schema.Ref != nil {
+		return nil, fmt.Errorf("ref not supported")
+	}
+	if schema.Format != nil {
+		return nil, fmt.Errorf("format not supported")
+	}
+	return map[string]*relapse.Pattern{"main": relapse.NewEmptySet()}, nil
 }

@@ -42,6 +42,7 @@ func TestDraft4(t *testing.T) {
 		g, err := TranslateDraft4(test.Schema)
 		if err != nil {
 			t.Errorf(test.Description + ": failed to convert:" + err.Error())
+			continue
 		}
 		valid, err := catch(func() bool {
 			return interp.Interpret(g, s)

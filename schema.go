@@ -178,36 +178,65 @@ func init() {
 }
 */
 type Schema struct {
-	Id                   *string
-	Schema               *string `json:"$schema"`
-	Title                *string
-	Description          *string
-	Default              interface{}
-	MultipleOf           *float64
-	Maximum              *float64
-	ExclusiveMaximum     bool
-	Minimum              *float64
-	ExclusiveMinimum     bool
-	MaxLength            *uint64
-	MinLength            uint64
-	Pattern              *string
-	AdditionalItems      *Additional
-	Items                *Items
-	MaxItems             *uint64
-	MinItems             uint64
-	UniqueItems          bool
+	Id          *string
+	Schema      *string `json:"$schema"`
+	Title       *string
+	Description *string
+	Default     interface{}
+	Numeric
+	String
+	Array
+	Object
+	Instance
+
+	Ref    *string `json:"$ref"`
+	Format *string
+}
+
+//http://json-schema.org/latest/json-schema-validation.html#anchor13
+type Numeric struct {
+	MultipleOf       *float64
+	Maximum          *float64
+	ExclusiveMaximum bool
+	Minimum          *float64
+	ExclusiveMinimum bool
+}
+
+func (this Numeric) HasNumericConstraints() bool {
+	return this.MultipleOf != nil || this.Maximum != nil || this.Minimum != nil
+}
+
+//http://json-schema.org/latest/json-schema-validation.html#anchor25
+type String struct {
+	MaxLength *uint64
+	MinLength uint64
+	Pattern   *string
+}
+
+func (this String) HasStringConstraints() bool {
+	return this.MaxLength != nil || this.MinLength > 0 || this.Pattern != nil
+}
+
+//http://json-schema.org/latest/json-schema-validation.html#anchor36
+type Array struct {
+	AdditionalItems *Additional
+	Items           *Items
+	MaxItems        *uint64
+	MinItems        uint64
+	UniqueItems     bool
+}
+
+func (this Array) HasArrayConstraints() bool {
+	return this.AdditionalItems != nil || this.Items != nil ||
+		this.MaxItems != nil || this.MinItems > 0 || this.UniqueItems
+}
+
+//http://json-schema.org/latest/json-schema-validation.html#anchor53
+type Object struct {
 	MaxProperties        *uint64
 	MinProperties        uint64
 	Required             []string
 	AdditionalProperties *Additional
-	/*
-	   "type": "object",
-	   "additionalProperties": { "$ref": "#" },
-	   "default": {}
-	*/
-	//http://json-schema.org/latest/json-schema-validation.html#anchor94
-	//  This keyword's value MUST be an object. Each member value of this object MUST be a valid JSON Schema.
-	Definitions map[string]*Schema
 	/*
 	   "type": "object",
 	   "additionalProperties": { "$ref": "#" },
@@ -225,6 +254,25 @@ type Schema struct {
 	//  The value of "patternProperties" MUST be an object. Each property name of this object SHOULD be a valid regular expression, according to the ECMA 262 regular expression dialect. Each property value of this object MUST be an object, and each object MUST be a valid JSON Schema.
 	PatternProperties map[string]*Schema
 	Dependencies      *Dependencies
+}
+
+func (this Object) HasObjectConstraints() bool {
+	return this.MaxProperties != nil || this.MinProperties > 0 ||
+		this.Required != nil || this.AdditionalProperties != nil ||
+		this.Properties != nil || this.PatternProperties != nil ||
+		this.Dependencies != nil
+}
+
+//http://json-schema.org/latest/json-schema-validation.html#anchor75
+type Instance struct {
+	/*
+	   "type": "object",
+	   "additionalProperties": { "$ref": "#" },
+	   "default": {}
+	*/
+	//http://json-schema.org/latest/json-schema-validation.html#anchor94
+	//  This keyword's value MUST be an object. Each member value of this object MUST be a valid JSON Schema.
+	Definitions map[string]*Schema
 	/*
 	   "type": "array",
 	   "minItems": 1,
@@ -236,6 +284,12 @@ type Schema struct {
 	AnyOf []*Schema
 	OneOf []*Schema
 	Not   *Schema
+}
+
+func (this Instance) HasInstanceConstraints() bool {
+	return this.Definitions != nil || this.Enum != nil ||
+		this.Type != nil || this.AllOf != nil || this.AnyOf != nil ||
+		this.OneOf != nil || this.Not != nil
 }
 
 /*
