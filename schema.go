@@ -292,6 +292,10 @@ func (this Instance) HasInstanceConstraints() bool {
 		this.OneOf != nil || this.Not != nil
 }
 
+func (this Instance) GetType() []SimpleType {
+	return *this.Type
+}
+
 /*
    "anyOf": [
        { "type": "boolean" },
