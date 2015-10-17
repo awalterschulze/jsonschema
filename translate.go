@@ -148,3 +148,60 @@ func translateString(schema *Schema) (*relapse.Pattern, error) {
 	}
 	return newLeaf(funcs.Sprint(and(list))), nil
 }
+
+func translateArray(schema *Schema) (*relapse.Pattern, error) {
+	if schema.Type != nil {
+		if len(*schema.Type) > 1 {
+			return nil, fmt.Errorf("list of types not supported with array constraints %#v", schema)
+		}
+		if schema.GetType()[0] != TypeArray {
+			return nil, fmt.Errorf("%v not supported with array constraints", schema.GetType()[0])
+		}
+	}
+	if schema.UniqueItems {
+		return nil, fmt.Errorf("uniqueItems are not supported")
+	}
+	if schema.MaxItems != nil {
+		return nil, fmt.Errorf("maxItems are not supported")
+	}
+	if schema.MinItems > 0 {
+		return nil, fmt.Errorf("minItems are not supported")
+	}
+	additionalItems := true
+	if schema.AdditionalItems != nil {
+		if schema.Items == nil {
+			//any
+		}
+		if schema.AdditionalItems.Bool != nil {
+			additionalItems = *schema.AdditionalItems.Bool
+		}
+		if !additionalItems && (schema.MaxLength != nil || schema.MinLength > 0) {
+			return nil, fmt.Errorf("additionalItems: false and (maxItems|minItems) are not supported together")
+		}
+		return nil, fmt.Errorf("additionalItems are not supported")
+	}
+	if schema.Items != nil {
+		if schema.Items.Object != nil {
+			if schema.Items.Object.Type == nil {
+				//any
+			} else {
+				typ := schema.Items.Object.GetType()[0]
+				_ = typ
+			}
+			//TODO this specifies the type of every item in the list
+		} else if schema.Items.Array != nil {
+			if !additionalItems {
+				//TODO this specifies the length of the list as well as each ordered element's type
+				//  if no type is set then any type is accepted
+				maxLength := len(schema.Items.Array)
+				_ = maxLength
+			} else {
+				//TODO this specifies the types of the first few ordered items in the list
+				//  if no type is set then any type is accepted
+			}
+
+		}
+		return nil, fmt.Errorf("items are not supported")
+	}
+	return nil, nil
+}

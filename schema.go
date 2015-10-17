@@ -308,23 +308,38 @@ func (this Instance) GetType() []SimpleType {
 //http://json-schema.org/latest/json-schema-validation.html#anchor49
 //  The value of "additionalProperties" MUST be a boolean or an object. If it is an object, it MUST also be a valid JSON Schema.
 type Additional struct {
-	Bool   *bool
-	Schema *Schema
+	Bool *bool
+	//Typically only the type field of the jsonschema is set.
+	Type SimpleType
+}
+
+type aSchema struct {
+	Type *Type `json:"type"`
 }
 
 func (this *Additional) UnmarshalJSON(buf []byte) error {
 	var b bool
 	dec := json.NewDecoder(bytes.NewBuffer(buf))
 	if err := dec.Decode(&b); err == nil {
-		this = &Additional{Bool: &b}
+		*this = Additional{Bool: &b}
 		return nil
 	}
-	s := &Schema{}
+	s := &aSchema{}
 	if err := json.Unmarshal(buf, s); err != nil {
 		log.Printf("%v", err)
 		return err
 	}
-	this = &Additional{Schema: s}
+	if s.Type == nil {
+		return fmt.Errorf("the additional(Items|Properties) field is empty")
+	}
+	typ := *s.Type
+	if len(typ) > 1 {
+		return fmt.Errorf("the additional(Items|Properties) field's type field has more than one element")
+	}
+	if len(typ) == 0 {
+		panic(fmt.Errorf("%#v buf = %s", s.Type, string(buf)))
+	}
+	*this = Additional{Type: typ[0]}
 	return nil
 }
 
@@ -337,21 +352,23 @@ func (this *Additional) UnmarshalJSON(buf []byte) error {
 */
 //http://json-schema.org/latest/json-schema-validation.html#anchor37
 //  The value of "items" MUST be either an object or an array. If it is an object, this object MUST be a valid JSON Schema. If it is an array, items of this array MUST be objects, and each of these objects MUST be a valid JSON Schema.
-type Items []*Schema
+type Items struct {
+	Object *Schema
+	Array  []*Schema
+}
 
 func (this *Items) UnmarshalJSON(buf []byte) error {
-	schemas := []*Schema{}
 	var s *Schema
 	if err := json.Unmarshal(buf, &s); err == nil {
-		schemas = append(schemas, s)
-		*this = schemas
+		*this = Items{Object: s}
 		return nil
 	}
+	schemas := []*Schema{}
 	if err := json.Unmarshal(buf, &schemas); err != nil {
 		log.Printf("%v input %s", err, string(buf))
 		return err
 	}
-	*this = schemas
+	*this = Items{Array: schemas}
 	return nil
 }
 
@@ -378,7 +395,7 @@ type Dependency struct {
 func (this *Dependency) UnmarshalJSON(buf []byte) error {
 	var s *Schema
 	if err := json.Unmarshal(buf, &s); err == nil {
-		this = &Dependency{Schema: s}
+		*this = Dependency{Schema: s}
 		return nil
 	}
 	var ss []string
@@ -387,7 +404,7 @@ func (this *Dependency) UnmarshalJSON(buf []byte) error {
 		log.Printf("%v input %s", err, string(buf))
 		return err
 	}
-	this = &Dependency{Property: ss}
+	*this = Dependency{Property: ss}
 	checkUnique := make(map[string]struct{})
 	for _, s := range this.Property {
 		if _, ok := checkUnique[s]; ok {
@@ -414,7 +431,6 @@ func (this *Dependency) UnmarshalJSON(buf []byte) error {
 type Type []SimpleType
 
 func (this *Type) UnmarshalJSON(buf []byte) error {
-	this = &Type{}
 	t := []SimpleType{}
 	decs := json.NewDecoder(bytes.NewBuffer(buf))
 	var s string
@@ -427,6 +443,8 @@ func (this *Type) UnmarshalJSON(buf []byte) error {
 		t = append(t, simpleType)
 		*this = t
 		return nil
+	} else {
+		log.Printf("type decode err = %v", err)
 	}
 	var ss []string
 	decss := json.NewDecoder(bytes.NewBuffer(buf))

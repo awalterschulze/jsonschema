@@ -35,23 +35,32 @@ func TestDraft4(t *testing.T) {
 	t.Logf("number of tests %d", len(tests))
 	s := json.NewJsonParser()
 	for _, test := range tests {
-		t.Logf(test.Description)
+		fail := false
+		t.Logf("--- RUN: " + test.Description)
 		if err := s.Init(test.Data); err != nil {
 			panic(err)
 		}
 		g, err := TranslateDraft4(test.Schema)
 		if err != nil {
+			fail = true
 			t.Errorf(test.Description + ": failed to convert:" + err.Error())
-			continue
+		} else {
+			valid, err := catch(func() bool {
+				return interp.Interpret(g, s)
+			})
+			if err != nil {
+				fail = true
+				t.Errorf(test.Description + ": Interpret Error:" + err.Error())
+			}
+			if valid != test.Valid {
+				fail = true
+				t.Errorf(test.Description+": expected %v got %v", test.Valid, valid)
+			}
 		}
-		valid, err := catch(func() bool {
-			return interp.Interpret(g, s)
-		})
-		if err != nil {
-			t.Errorf(test.Description + ": Interpret Error:" + err.Error())
-		}
-		if valid != test.Valid {
-			t.Errorf(test.Description+": expected %v got %v", test.Valid, valid)
+		if fail {
+			t.Logf("--- FAIL: " + test.Description)
+		} else {
+			t.Logf("--- PASS: " + test.Description)
 		}
 	}
 }
