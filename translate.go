@@ -48,7 +48,8 @@ func translate(schema *Schema) (relapse.RefLookup, error) {
 		return map[string]*relapse.Pattern{"main": p}, err
 	}
 	if schema.HasStringConstraints() {
-		return nil, fmt.Errorf("string not supported")
+		p, err := translateString(schema)
+		return map[string]*relapse.Pattern{"main": p}, err
 	}
 	if schema.HasArrayConstraints() {
 		return nil, fmt.Errorf("array not supported")
@@ -112,14 +113,38 @@ func translateNumeric(schema *Schema) (*relapse.Pattern, error) {
 		}
 		list = append(list, lt)
 	}
+	return newLeaf(funcs.Sprint(and(list))), nil
+}
+
+func and(list []funcs.Bool) funcs.Bool {
 	if len(list) == 0 {
 		panic("unreachable")
 	}
 	if len(list) == 1 {
-		return newLeaf(funcs.Sprint(list[0])), nil
+		return list[0]
 	}
-	if len(list) == 2 {
-		return newLeaf(funcs.Sprint(funcs.And(list[0], list[1]))), nil
+	return funcs.And(list[0], and(list[1:]))
+}
+
+func translateString(schema *Schema) (*relapse.Pattern, error) {
+	v := funcs.StringVar()
+	if schema.Type != nil {
+		if len(*schema.Type) > 1 {
+			return nil, fmt.Errorf("list of types not supported with string constraints %#v", schema)
+		}
+		if schema.GetType()[0] != TypeString {
+			return nil, fmt.Errorf("%v not supported with string constraints", schema.GetType()[0])
+		}
 	}
-	return newLeaf(funcs.Sprint(funcs.And(list[0], funcs.And(list[1], list[2])))), nil
+	list := []funcs.Bool{}
+	if schema.MaxLength != nil {
+		list = append(list, MaxLength(v, *schema.MaxLength))
+	}
+	if schema.MinLength > 0 {
+		list = append(list, MinLength(v, schema.MinLength))
+	}
+	if schema.Pattern != nil {
+		list = append(list, funcs.Regex(funcs.StringConst(*schema.Pattern), v))
+	}
+	return newLeaf(funcs.Sprint(and(list))), nil
 }

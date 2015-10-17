@@ -96,3 +96,65 @@ func (this *number) Eval() (float64, error) {
 func init() {
 	funcs.Register("number", new(number))
 }
+
+func MaxLength(v funcs.String, n uint64) funcs.Bool {
+	return &maxLength{v, funcs.UintConst(n), 0}
+}
+
+type maxLength struct {
+	S funcs.String
+	N funcs.ConstUint
+	n uint64
+}
+
+func (this *maxLength) Init() error {
+	n, err := this.N.Eval()
+	if err != nil {
+		return err
+	}
+	this.n = n
+	return nil
+}
+
+func (this *maxLength) Eval() (bool, error) {
+	s, err := this.S.Eval()
+	if err != nil {
+		return false, err
+	}
+	return len(s) <= int(this.n), nil
+}
+
+func init() {
+	funcs.Register("maxLength", new(maxLength))
+}
+
+func MinLength(v funcs.String, n uint64) funcs.Bool {
+	return &minLength{v, funcs.UintConst(n), 0}
+}
+
+type minLength struct {
+	S funcs.String
+	N funcs.ConstUint
+	n uint64
+}
+
+func (this *minLength) Init() error {
+	n, err := this.N.Eval()
+	if err != nil {
+		return err
+	}
+	this.n = n
+	return nil
+}
+
+func (this *minLength) Eval() (bool, error) {
+	s, err := this.S.Eval()
+	if err != nil {
+		return false, err
+	}
+	return len(s) >= int(this.n), nil
+}
+
+func init() {
+	funcs.Register("minLength", new(minLength))
+}
