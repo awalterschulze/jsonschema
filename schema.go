@@ -431,6 +431,37 @@ func (this *Dependency) UnmarshalJSON(buf []byte) error {
 */
 type Type []SimpleType
 
+func (this *Type) HasArray() bool {
+	return this.has(TypeArray)
+}
+
+func (this *Type) HasNumeric() bool {
+	return this.has(TypeInteger) || this.has(TypeNumber)
+}
+
+func (this *Type) HasString() bool {
+	return this.has(TypeString)
+}
+
+func (this *Type) has(s SimpleType) bool {
+	if this == nil {
+		return false
+	}
+	for _, t := range *this {
+		if t == s {
+			return true
+		}
+	}
+	return false
+}
+
+func (this *Type) Single() bool {
+	if this == nil {
+		return false
+	}
+	return len(*this) == 1
+}
+
 func (this *Type) UnmarshalJSON(buf []byte) error {
 	t := []SimpleType{}
 	decs := json.NewDecoder(bytes.NewBuffer(buf))

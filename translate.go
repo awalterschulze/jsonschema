@@ -43,15 +43,18 @@ func translate(schema *Schema) (*relapse.Pattern, error) {
 	if schema.Default != nil {
 		return nil, fmt.Errorf("default not supported")
 	}
-	if schema.HasNumericConstraints() {
+	if schema.HasNumericConstraints() || (schema.Type.Single() &&
+		schema.Type.HasNumeric()) {
 		p, err := translateNumeric(schema)
 		return p, err
 	}
-	if schema.HasStringConstraints() {
+	if schema.HasStringConstraints() || (schema.Type.Single() &&
+		schema.Type.HasString()) {
 		p, err := translateString(schema)
 		return p, err
 	}
-	if schema.HasArrayConstraints() {
+	if schema.HasArrayConstraints() || (schema.Type.Single() &&
+		schema.Type.HasArray()) {
 		return nil, fmt.Errorf("array not supported")
 	}
 	if schema.HasObjectConstraints() {
@@ -280,6 +283,9 @@ func translateNumeric(schema *Schema) (*relapse.Pattern, error) {
 		}
 		list = append(list, lt)
 	}
+	if len(list) == 0 {
+		return combinator.Value(funcs.TypeDouble(v)), nil
+	}
 	return combinator.Value(and(list)), nil
 }
 
@@ -312,6 +318,9 @@ func translateString(schema *Schema) (*relapse.Pattern, error) {
 	}
 	if schema.Pattern != nil {
 		list = append(list, funcs.Regex(funcs.StringConst(*schema.Pattern), v))
+	}
+	if len(list) == 0 {
+		return combinator.Value(funcs.TypeString(v)), nil
 	}
 	return combinator.Value(and(list)), nil
 }
