@@ -17,10 +17,10 @@ package jsonschema
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/katydid/katydid/expr/ast"
-	exprparser "github.com/katydid/katydid/expr/parser"
 	"github.com/katydid/katydid/funcs"
 	"github.com/katydid/katydid/relapse/ast"
+	"github.com/katydid/katydid/relapse/combinator"
+	"sort"
 )
 
 //TODO
@@ -29,14 +29,14 @@ func TranslateDraft4(jsonSchema []byte) (*relapse.Grammar, error) {
 	if err := json.Unmarshal(jsonSchema, schema); err != nil {
 		panic(err)
 	}
-	refs, err := translate(schema)
+	p, err := translate(schema)
 	if err != nil {
 		return nil, err
 	}
-	return relapse.NewGrammar(refs), nil
+	return relapse.NewGrammar(relapse.RefLookup(map[string]*relapse.Pattern{"main": p})), nil
 }
 
-func translate(schema *Schema) (relapse.RefLookup, error) {
+func translate(schema *Schema) (*relapse.Pattern, error) {
 	if schema.Id != nil {
 		return nil, fmt.Errorf("id not supported")
 	}
@@ -45,11 +45,11 @@ func translate(schema *Schema) (relapse.RefLookup, error) {
 	}
 	if schema.HasNumericConstraints() {
 		p, err := translateNumeric(schema)
-		return map[string]*relapse.Pattern{"main": p}, err
+		return p, err
 	}
 	if schema.HasStringConstraints() {
 		p, err := translateString(schema)
-		return map[string]*relapse.Pattern{"main": p}, err
+		return p, err
 	}
 	if schema.HasArrayConstraints() {
 		return nil, fmt.Errorf("array not supported")
@@ -67,19 +67,95 @@ func translate(schema *Schema) (relapse.RefLookup, error) {
 	if schema.Format != nil {
 		return nil, fmt.Errorf("format not supported")
 	}
-	return map[string]*relapse.Pattern{"main": relapse.NewEmptySet()}, nil
+	return relapse.NewEmptySet(), nil
 }
 
-//TODO rather call a function available in the katydid relapse library
-func newLeaf(exprStr string) *relapse.Pattern {
-	e, err := exprparser.NewParser().ParseExpr(exprStr)
-	if err != nil {
-		panic(err)
+func translateObject(schema *Schema) (*relapse.Pattern, error) {
+	if schema.MaxProperties != nil {
+		return nil, fmt.Errorf("maxProperties not supported")
 	}
-	return &relapse.Pattern{LeafNode: &relapse.LeafNode{
-		RightArrow: &expr.Keyword{Value: "->"},
-		Expr:       e,
-	}}
+	if schema.MinProperties > 0 {
+		return nil, fmt.Errorf("minProperties not supported")
+	}
+	required := make(map[string]struct{})
+	for _, req := range schema.Required {
+		required[req] = struct{}{}
+	}
+	requiredIf := make(map[string][]string)
+	moreProperties := make(map[string]*Schema)
+	if schema.Dependencies != nil {
+		deps := *schema.Dependencies
+		for name, dep := range deps {
+			if len(dep.RequiredProperty) > 0 {
+				requiredIf[name] = deps[name].RequiredProperty
+			} else {
+				moreProperties[name] = deps[name].Schema
+			}
+		}
+	}
+	additional := relapse.NewZAny()
+	if schema.AdditionalProperties != nil {
+		if schema.AdditionalProperties.Bool != nil && !(*schema.AdditionalProperties.Bool) {
+			additional = relapse.NewEmpty()
+		} else if schema.AdditionalProperties.Type != TypeUnknown {
+			var typ *relapse.Pattern
+			switch schema.AdditionalProperties.Type {
+			case TypeArray:
+				return nil, fmt.Errorf("type array in additionalProperties not supported")
+			case TypeBoolean:
+				typ = combinator.Value(funcs.TypeBool(funcs.BoolVar()))
+			case TypeInteger:
+				typ = combinator.Value(funcs.TypeDouble(Integer()))
+			case TypeNull:
+				typ = relapse.NewEmpty()
+			case TypeNumber:
+				typ = combinator.Value(funcs.TypeDouble(Number()))
+			case TypeObject:
+				return nil, fmt.Errorf("type object in additionalProperties not supported")
+			case TypeString:
+				typ = combinator.Value(funcs.TypeString(funcs.StringVar()))
+			default:
+				panic(fmt.Sprintf("unknown simpletype in additional properties: %s",
+					schema.AdditionalProperties.Type))
+			}
+			additional = relapse.NewZeroOrMore(
+				relapse.NewTreeNode(relapse.NewAnyName(), typ),
+			)
+		}
+	}
+	names := []string{}
+	for name, _ := range schema.Properties {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	patterns := make(map[string]*relapse.Pattern)
+	for _, name := range names {
+		child, err := translate(schema.Properties[name])
+		if err != nil {
+			return nil, err
+		}
+		patterns[name] = relapse.NewTreeNode(relapse.NewName(name), child)
+	}
+	_ = additional
+	for _, name := range names {
+		if requires, ok := requiredIf[name]; ok {
+			_ = requires
+		}
+		if s, ok := moreProperties[name]; ok {
+			_ = s
+		}
+		if _, ok := required[name]; !ok {
+			//prop = optional(prop)
+		}
+	}
+	if len(schema.PatternProperties) > 0 {
+		return nil, fmt.Errorf("patternProperties not supported")
+	}
+	panic("todo")
+}
+
+func optional(p *relapse.Pattern) *relapse.Pattern {
+	return relapse.NewOr(relapse.NewEmpty(), p)
 }
 
 func translateNumeric(schema *Schema) (*relapse.Pattern, error) {
@@ -113,7 +189,7 @@ func translateNumeric(schema *Schema) (*relapse.Pattern, error) {
 		}
 		list = append(list, lt)
 	}
-	return newLeaf(funcs.Sprint(and(list))), nil
+	return combinator.Value(and(list)), nil
 }
 
 func and(list []funcs.Bool) funcs.Bool {
@@ -146,7 +222,7 @@ func translateString(schema *Schema) (*relapse.Pattern, error) {
 	if schema.Pattern != nil {
 		list = append(list, funcs.Regex(funcs.StringConst(*schema.Pattern), v))
 	}
-	return newLeaf(funcs.Sprint(and(list))), nil
+	return combinator.Value(and(list)), nil
 }
 
 func translateArray(schema *Schema) (*relapse.Pattern, error) {

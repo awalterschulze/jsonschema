@@ -385,11 +385,12 @@ func (this *Items) UnmarshalJSON(buf []byte) error {
 //  This keyword's value MUST be an object. Each value of this object MUST be either an object or an array.
 //  If the value is an object, it MUST be a valid JSON Schema. This is called a schema dependency.
 //  If the value is an array, it MUST have at least one element. Each element MUST be a string, and elements in the array MUST be unique. This is called a property dependency.
+//http://spacetelescope.github.io/understanding-json-schema/reference/object.html#dependencies
 type Dependencies map[string]*Dependency
 
 type Dependency struct {
-	Schema   *Schema
-	Property []string
+	Schema           *Schema
+	RequiredProperty []string
 }
 
 func (this *Dependency) UnmarshalJSON(buf []byte) error {
@@ -404,9 +405,9 @@ func (this *Dependency) UnmarshalJSON(buf []byte) error {
 		log.Printf("%v input %s", err, string(buf))
 		return err
 	}
-	*this = Dependency{Property: ss}
+	*this = Dependency{RequiredProperty: ss}
 	checkUnique := make(map[string]struct{})
-	for _, s := range this.Property {
+	for _, s := range this.RequiredProperty {
 		if _, ok := checkUnique[s]; ok {
 			err := fmt.Errorf("duplicate found in property dependency list %s", s)
 			log.Printf("%v", err)
