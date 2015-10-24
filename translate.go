@@ -55,10 +55,12 @@ func translate(schema *Schema) (*relapse.Pattern, error) {
 		return nil, fmt.Errorf("array not supported")
 	}
 	if schema.HasObjectConstraints() {
-		return nil, fmt.Errorf("object not supported")
+		p, err := translateObject(schema)
+		return p, err
 	}
 	if schema.HasInstanceConstraints() {
-		return nil, fmt.Errorf("instance not supported")
+		p, err := translateInstance(schema)
+		return p, err
 	}
 
 	if schema.Ref != nil {
@@ -68,6 +70,111 @@ func translate(schema *Schema) (*relapse.Pattern, error) {
 		return nil, fmt.Errorf("format not supported")
 	}
 	return relapse.NewEmptySet(), nil
+}
+
+func translates(schemas []*Schema) ([]*relapse.Pattern, error) {
+	ps := make([]*relapse.Pattern, len(schemas))
+	for i := range schemas {
+		var err error
+		ps[i], err = translate(schemas[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return ps, nil
+}
+
+func rest(patterns []*relapse.Pattern, index int) []*relapse.Pattern {
+	return append(patterns[:index], patterns[index+1:]...)
+}
+
+func translateInstance(schema *Schema) (*relapse.Pattern, error) {
+	if len(schema.Definitions) > 0 {
+		return nil, fmt.Errorf("definitions not supported")
+	}
+	if len(schema.Enum) > 0 {
+		return nil, fmt.Errorf("enum not supported")
+	}
+	if schema.Type != nil {
+		types := *schema.Type
+		if len(types) == 1 {
+			return translateType(types[0])
+		}
+		ps := make([]*relapse.Pattern, len(types))
+		for i := range types {
+			var err error
+			ps[i], err = translateType(types[i])
+			if err != nil {
+				return nil, err
+			}
+		}
+		return relapse.NewOr(ps...), nil
+	}
+	if len(schema.AllOf) > 0 {
+		ps, err := translates(schema.AllOf)
+		if err != nil {
+			return nil, err
+		}
+		return relapse.NewAnd(ps...), nil
+	}
+	if len(schema.AnyOf) > 0 {
+		ps, err := translates(schema.AnyOf)
+		if err != nil {
+			return nil, err
+		}
+		return relapse.NewOr(ps...), nil
+	}
+	if len(schema.OneOf) > 0 {
+		ps, err := translates(schema.OneOf)
+		if err != nil {
+			return nil, err
+		}
+		if len(ps) == 0 {
+			return nil, fmt.Errorf("oneof of zero schemas not supported")
+		}
+		if len(ps) == 1 {
+			return ps[0], nil
+		}
+		orps := make([]*relapse.Pattern, len(ps))
+		for i := range ps {
+			other := rest(ps, i)
+			orps[i] = relapse.NewAnd(
+				ps[i],
+				relapse.NewNot(
+					relapse.NewOr(other...),
+				),
+			)
+		}
+		return relapse.NewOr(orps...), nil
+	}
+	if schema.Not != nil {
+		p, err := translate(schema.Not)
+		if err != nil {
+			return nil, err
+		}
+		return relapse.NewNot(p), nil
+	}
+	panic("unreachable object")
+}
+
+func translateType(typ SimpleType) (*relapse.Pattern, error) {
+	switch typ {
+	case TypeArray:
+		return nil, fmt.Errorf("type array not supported")
+	case TypeBoolean:
+		return combinator.Value(funcs.TypeBool(funcs.BoolVar())), nil
+	case TypeInteger:
+		return combinator.Value(funcs.TypeDouble(Integer())), nil
+	case TypeNull:
+		return relapse.NewEmpty(), nil
+	case TypeNumber:
+		return combinator.Value(funcs.TypeDouble(Number())), nil
+	case TypeObject:
+		return nil, fmt.Errorf("type object not supported")
+	case TypeString:
+		return combinator.Value(funcs.TypeString(funcs.StringVar())), nil
+	}
+	panic(fmt.Sprintf("unknown simpletype: %s", typ))
 }
 
 func translateObject(schema *Schema) (*relapse.Pattern, error) {
@@ -98,25 +205,9 @@ func translateObject(schema *Schema) (*relapse.Pattern, error) {
 		if schema.AdditionalProperties.Bool != nil && !(*schema.AdditionalProperties.Bool) {
 			additional = relapse.NewEmpty()
 		} else if schema.AdditionalProperties.Type != TypeUnknown {
-			var typ *relapse.Pattern
-			switch schema.AdditionalProperties.Type {
-			case TypeArray:
-				return nil, fmt.Errorf("type array in additionalProperties not supported")
-			case TypeBoolean:
-				typ = combinator.Value(funcs.TypeBool(funcs.BoolVar()))
-			case TypeInteger:
-				typ = combinator.Value(funcs.TypeDouble(Integer()))
-			case TypeNull:
-				typ = relapse.NewEmpty()
-			case TypeNumber:
-				typ = combinator.Value(funcs.TypeDouble(Number()))
-			case TypeObject:
-				return nil, fmt.Errorf("type object in additionalProperties not supported")
-			case TypeString:
-				typ = combinator.Value(funcs.TypeString(funcs.StringVar()))
-			default:
-				panic(fmt.Sprintf("unknown simpletype in additional properties: %s",
-					schema.AdditionalProperties.Type))
+			typ, err := translateType(schema.AdditionalProperties.Type)
+			if err != nil {
+				return nil, err
 			}
 			additional = relapse.NewZeroOrMore(
 				relapse.NewTreeNode(relapse.NewAnyName(), typ),
@@ -151,7 +242,7 @@ func translateObject(schema *Schema) (*relapse.Pattern, error) {
 	if len(schema.PatternProperties) > 0 {
 		return nil, fmt.Errorf("patternProperties not supported")
 	}
-	panic("todo")
+	return nil, fmt.Errorf("object not fully supported")
 }
 
 func optional(p *relapse.Pattern) *relapse.Pattern {
