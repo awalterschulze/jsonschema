@@ -121,7 +121,11 @@ func (this *maxLength) Eval() (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	return len(s) <= this.n, nil
+	l := 0
+	for range s {
+		l++
+	}
+	return l <= this.n, nil
 }
 
 func init() {
@@ -152,7 +156,11 @@ func (this *minLength) Eval() (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	return len(s) >= this.n, nil
+	l := 0
+	for range s {
+		l++
+	}
+	return l >= this.n, nil
 }
 
 func init() {

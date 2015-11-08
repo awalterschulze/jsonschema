@@ -315,10 +315,14 @@ func translateString(schema String) (*relapse.Pattern, error) {
 	v := funcs.StringVar()
 	list := []funcs.Bool{}
 	if schema.MaxLength != nil {
-		list = append(list, MaxLength(v, int64(*schema.MaxLength)))
+		ml := MaxLength(v, int64(*schema.MaxLength))
+		notStr := funcs.Not(funcs.TypeString(funcs.StringVar()))
+		list = append(list, funcs.Or(ml, notStr))
 	}
 	if schema.MinLength > 0 {
-		list = append(list, MinLength(v, int64(schema.MinLength)))
+		ml := MinLength(v, int64(schema.MinLength))
+		notStr := funcs.Not(funcs.TypeString(funcs.StringVar()))
+		list = append(list, funcs.Or(ml, notStr))
 	}
 	if schema.Pattern != nil {
 		list = append(list, funcs.Regex(funcs.StringConst(*schema.Pattern), v))

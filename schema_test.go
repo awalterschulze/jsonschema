@@ -17,6 +17,7 @@ package jsonschema
 import (
 	"fmt"
 	"github.com/katydid/katydid/relapse/interp"
+	"github.com/katydid/katydid/serialize/debug"
 	"github.com/katydid/katydid/serialize/json"
 	"testing"
 )
@@ -102,7 +103,8 @@ func TestDraft4(t *testing.T) {
 }
 
 func testDebug(t *testing.T, test Test) {
-	p := json.NewJsonParser()
+	jsonp := json.NewJsonParser()
+	p := debug.NewLogger(jsonp, debug.NewLineLogger())
 	t.Logf("Schema = %v", string(test.Schema))
 	schema, err := ParseSchema(test.Schema)
 	if err != nil {
@@ -115,7 +117,7 @@ func testDebug(t *testing.T, test Test) {
 	}
 	t.Logf("Translated = %v", g)
 	t.Logf("Input = %v", string(test.Data))
-	if err := p.Init(test.Data); err != nil {
+	if err := jsonp.Init(test.Data); err != nil {
 		t.Fatalf("parser Init error %v", err)
 	}
 	valid, err := catch(func() bool {
@@ -131,7 +133,7 @@ func testDebug(t *testing.T, test Test) {
 func TestDebug(t *testing.T) {
 	tests := buildTests(t)
 	for _, test := range tests {
-		if test.String() != "anyOf.json:anyOf:first anyOf valid" {
+		if test.String() != "maxLength.json:maxLength validation:two supplementary Unicode code points is long enough" {
 			continue
 		}
 		testDebug(t, test)
