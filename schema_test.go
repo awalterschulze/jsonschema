@@ -48,7 +48,7 @@ var skippingFile = map[string]bool{
 	"refRemote.json":            true, //known issue?
 	"required.json":             true,
 	"ref.json":                  true,
-	"properties.json":           true,
+	//"properties.json":           true,
 	"not.json":                  true, //requires properties and type object
 	"items.json":                true,
 	"enum.json":                 true, //requires properties and type object
@@ -61,8 +61,8 @@ var skippingFile = map[string]bool{
 }
 
 var skippingTest = map[string]bool{
-	"type.json:object type matches objects:an array is not an object": true,
-	"type.json:array type matches arrays:an object is not an array":   true,
+	"type.json:object type matches objects:an array is not an object": true, //known issue
+	"type.json:array type matches arrays:an object is not an array":   true, //known issue
 }
 
 func TestDraft4(t *testing.T) {
@@ -143,7 +143,7 @@ func testDebug(t *testing.T, test Test) {
 func TestDebug(t *testing.T) {
 	tests := buildTests(t)
 	for _, test := range tests {
-		if !strings.Contains(test.String(), "type.json:null type matches only the null object:null is null") {
+		if !strings.Contains(test.String(), "properties.json:object properties validation:doesn't invalidate other properties") {
 			continue
 		}
 		testDebug(t, test)

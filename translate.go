@@ -172,14 +172,15 @@ func translateInstance(schema *Schema) (*relapse.Pattern, error) {
 
 func translateType(typ SimpleType) (*relapse.Pattern, error) {
 	switch typ {
-	case TypeArray:
-		//this does not distinguish between arrays and objects
+	case TypeArray, TypeObject:
+		//This does not distinguish between arrays and objects
 		return combinator.Many(combinator.InAny(combinator.Any())), nil
 	case TypeBoolean:
 		return combinator.Value(funcs.TypeBool(funcs.BoolVar())), nil
 	case TypeInteger:
 		return combinator.Value(funcs.TypeDouble(Integer())), nil
 	case TypeNull:
+		//TODO null is not being returned by json parser, but is also not empty
 		return combinator.Value(funcs.Not(
 			funcs.Or(
 				funcs.TypeDouble(Number()),
@@ -191,9 +192,6 @@ func translateType(typ SimpleType) (*relapse.Pattern, error) {
 		)), nil
 	case TypeNumber:
 		return combinator.Value(funcs.TypeDouble(Number())), nil
-	case TypeObject:
-		//this does not distinguish between arrays and objects
-		return combinator.Many(combinator.InAny(combinator.Any())), nil
 	case TypeString:
 		return combinator.Value(funcs.TypeString(funcs.StringVar())), nil
 	}
@@ -223,7 +221,23 @@ func translateObject(schema *Schema) (*relapse.Pattern, error) {
 			}
 		}
 	}
+	names := []string{}
+	for name, _ := range schema.Properties {
+		names = append(names, name)
+	}
+	sort.Strings(names)
 	additional := relapse.NewZAny()
+	if len(names) > 0 {
+		nameExprs := make([]*relapse.NameExpr, len(names))
+		for i, name := range names {
+			nameExprs[i] = relapse.NewStringName(name)
+		}
+		additional = relapse.NewZeroOrMore(
+			relapse.NewTreeNode(relapse.NewAnyNameExcept(
+				relapse.NewNameChoice(nameExprs...),
+			), relapse.NewZAny()),
+		)
+	}
 	if schema.AdditionalProperties != nil {
 		if schema.AdditionalProperties.Bool != nil && !(*schema.AdditionalProperties.Bool) {
 			additional = relapse.NewEmpty()
@@ -237,11 +251,6 @@ func translateObject(schema *Schema) (*relapse.Pattern, error) {
 			)
 		}
 	}
-	names := []string{}
-	for name, _ := range schema.Properties {
-		names = append(names, name)
-	}
-	sort.Strings(names)
 	patterns := make(map[string]*relapse.Pattern)
 	for _, name := range names {
 		child, err := translate(schema.Properties[name])
@@ -250,22 +259,27 @@ func translateObject(schema *Schema) (*relapse.Pattern, error) {
 		}
 		patterns[name] = relapse.NewTreeNode(relapse.NewStringName(name), child)
 	}
-	_ = additional
 	for _, name := range names {
-		if requires, ok := requiredIf[name]; ok {
-			_ = requires
+		if _, ok := requiredIf[name]; ok {
+			return nil, fmt.Errorf("dependencies are not supported")
 		}
-		if s, ok := moreProperties[name]; ok {
-			_ = s
+		if _, ok := moreProperties[name]; ok {
+			return nil, fmt.Errorf("dependencies are not supported")
 		}
 		if _, ok := required[name]; !ok {
-			//prop = optional(prop)
+			patterns[name] = relapse.NewOptional(patterns[name])
 		}
 	}
 	if len(schema.PatternProperties) > 0 {
 		return nil, fmt.Errorf("patternProperties not supported")
 	}
-	return nil, fmt.Errorf("object not fully supported")
+	patternList := make([]*relapse.Pattern, 0, len(patterns))
+	for _, name := range names {
+
+		patternList = append(patternList, patterns[name])
+	}
+	patternList = append(patternList, additional)
+	return relapse.NewInterleave(patternList...), nil
 }
 
 func optional(p *relapse.Pattern) *relapse.Pattern {
