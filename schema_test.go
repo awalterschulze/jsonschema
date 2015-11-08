@@ -48,8 +48,7 @@ var skippingFile = map[string]bool{
 	"refRemote.json":            true, //known issue?
 	"required.json":             true,
 	"ref.json":                  true,
-	//"properties.json":           true,
-	"not.json":                  true, //requires properties and type object
+	"properties.json":           true,
 	"items.json":                true,
 	"enum.json":                 true, //requires properties and type object
 	"dependencies.json":         true,
