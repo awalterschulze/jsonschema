@@ -133,7 +133,7 @@ func testDebug(t *testing.T, test Test) {
 func TestDebug(t *testing.T) {
 	tests := buildTests(t)
 	for _, test := range tests {
-		if test.String() != "maxLength.json:maxLength validation:two supplementary Unicode code points is long enough" {
+		if test.String() != "oneOf.json:oneOf:first oneOf valid" {
 			continue
 		}
 		testDebug(t, test)

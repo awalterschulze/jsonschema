@@ -22,7 +22,6 @@ import (
 	"sort"
 )
 
-//TODO
 func TranslateDraft4(schema *Schema) (*relapse.Grammar, error) {
 	p, err := translate(schema)
 	if err != nil {
@@ -114,8 +113,10 @@ func translates(schemas []*Schema) ([]*relapse.Pattern, error) {
 	return ps, nil
 }
 
-func rest(patterns []*relapse.Pattern, index int) []*relapse.Pattern {
-	return append(patterns[:index], patterns[index+1:]...)
+func rest(xs []*relapse.Pattern, index int) []*relapse.Pattern {
+	ys := make([]*relapse.Pattern, index)
+	copy(ys, xs)
+	return append(ys, xs[index+1:]...)
 }
 
 func translateInstance(schema *Schema) (*relapse.Pattern, error) {
@@ -151,7 +152,7 @@ func translateInstance(schema *Schema) (*relapse.Pattern, error) {
 			return ps[0], nil
 		}
 		orps := make([]*relapse.Pattern, len(ps))
-		for i := range ps {
+		for i, _ := range ps {
 			other := rest(ps, i)
 			orps[i] = relapse.NewAnd(
 				ps[i],
