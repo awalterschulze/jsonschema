@@ -228,7 +228,7 @@ func translateObject(schema *Schema) (*relapse.Pattern, error) {
 		if err != nil {
 			return nil, err
 		}
-		patterns[name] = relapse.NewTreeNode(relapse.NewName(name), child)
+		patterns[name] = relapse.NewTreeNode(relapse.NewStringName(name), child)
 	}
 	_ = additional
 	for _, name := range names {

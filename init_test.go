@@ -54,7 +54,7 @@ type SchemaTesty struct {
 func buildTests(t *testing.T) []Test {
 	tests := []Test{}
 	filenames := getFileNames()
-	t.Logf("number of files %d", len(filenames))
+	t.Logf("number of test files: %d", len(filenames))
 	for _, filename := range filenames {
 		content, err := ioutil.ReadFile(filename)
 		if err != nil {
@@ -76,7 +76,8 @@ func buildTests(t *testing.T) []Test {
 					panic(err)
 				}
 				tests = append(tests, Test{
-					Description: filepath.Base(filename) + ":" + schemaDesc + ":" + schemaTests[i].Tests[j].Description,
+					Filename:    filepath.Base(filename),
+					Description: schemaDesc + ":" + schemaTests[i].Tests[j].Description,
 					Schema:      schemaStr,
 					Data:        dataStr,
 					Valid:       schemaTests[i].Tests[j].Valid,
@@ -88,8 +89,13 @@ func buildTests(t *testing.T) []Test {
 }
 
 type Test struct {
+	Filename    string
 	Description string
 	Schema      []byte
 	Data        []byte
 	Valid       bool
+}
+
+func (this Test) String() string {
+	return this.Filename + ":" + this.Description
 }

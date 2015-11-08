@@ -1,4 +1,4 @@
-#Converts JsonSchema to Katydid
+#Translates JsonSchema to Katydid Relapse
 
 No code here yet, only tests
 

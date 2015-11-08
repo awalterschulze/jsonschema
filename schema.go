@@ -476,7 +476,7 @@ func (this *Type) UnmarshalJSON(buf []byte) error {
 		*this = t
 		return nil
 	} else {
-		log.Printf("type decode err = %v", err)
+		//log.Printf("type decode err = %v input = %s", err, string(buf))
 	}
 	var ss []string
 	decss := json.NewDecoder(bytes.NewBuffer(buf))
