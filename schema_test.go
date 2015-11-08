@@ -37,6 +37,7 @@ func catch(f func() bool) (v bool, err error) {
 var skippingFile = map[string]bool{
 	"format.json":               true, //optional
 	"bignum.json":               true, //optional
+	"zeroTerminatedFloats.json": true, //optional
 	"uniqueItems.json":          true, //known issue
 	"patternProperties.json":    true, //known issue
 	"minProperties.json":        true, //known issue?
@@ -130,12 +131,12 @@ func testDebug(t *testing.T, test Test) {
 	}
 }
 
-func TestDebug(t *testing.T) {
-	tests := buildTests(t)
-	for _, test := range tests {
-		if test.String() != "oneOf.json:oneOf:first oneOf valid" {
-			continue
-		}
-		testDebug(t, test)
-	}
-}
+// func TestDebug(t *testing.T) {
+// 	tests := buildTests(t)
+// 	for _, test := range tests {
+// 		if test.String() != "zeroTerminatedFloats.json:some languages do not distinguish between different types of numeric value:a float is not an integer even without fractional part" {
+// 			continue
+// 		}
+// 		testDebug(t, test)
+// 	}
+// }
