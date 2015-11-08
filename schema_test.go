@@ -131,7 +131,7 @@ func testDebug(t *testing.T, test Test) {
 func TestDebug(t *testing.T) {
 	tests := buildTests(t)
 	for _, test := range tests {
-		if test.String() != "anyOf.json:anyOf with base schema:both anyOf invalid" {
+		if test.String() != "anyOf.json:anyOf:first anyOf valid" {
 			continue
 		}
 		testDebug(t, test)

@@ -32,27 +32,56 @@ func TranslateDraft4(schema *Schema) (*relapse.Grammar, error) {
 }
 
 func translate(schema *Schema) (*relapse.Pattern, error) {
+	if schema.Type.Single() && schema.Type.HasArray() {
+		return nil, fmt.Errorf("array not supported")
+	}
+	pattern, err := translateOne(schema)
+	if err != nil {
+		return nil, err
+	}
+	if schema.Type != nil {
+		types := *schema.Type
+		if len(types) == 1 {
+			p, err := translateType(types[0])
+			if err != nil {
+				return nil, err
+			}
+			pattern = relapse.NewAnd(p, pattern)
+		} else {
+			ps := make([]*relapse.Pattern, len(types))
+			for i := range types {
+				var err error
+				ps[i], err = translateType(types[i])
+				if err != nil {
+					return nil, err
+				}
+			}
+			ors := relapse.NewOr(ps...)
+			pattern = relapse.NewAnd(ors, pattern)
+		}
+	}
+	return pattern, nil
+}
+
+func translateOne(schema *Schema) (*relapse.Pattern, error) {
 	if len(schema.Id) > 0 {
 		return nil, fmt.Errorf("id not supported")
 	}
 	if schema.Default != nil {
 		return nil, fmt.Errorf("default not supported")
 	}
-	if schema.HasNumericConstraints() || (schema.Type.Single() &&
-		schema.Type.HasNumeric()) {
+	if schema.HasNumericConstraints() {
 		p, err := translateNumeric(schema)
 		return p, err
 	}
-	if schema.HasStringConstraints() || (schema.Type.Single() &&
-		schema.Type.HasString()) {
+	if schema.HasStringConstraints() {
 		if schema.Type != nil && len(*schema.Type) > 1 {
 			return nil, fmt.Errorf("list of types not supported with string constraints %#v", schema)
 		}
 		p, err := translateString(schema.String)
 		return p, err
 	}
-	if schema.HasArrayConstraints() || (schema.Type.Single() &&
-		schema.Type.HasArray()) {
+	if schema.HasArrayConstraints() {
 		return nil, fmt.Errorf("array not supported")
 	}
 	if schema.HasObjectConstraints() {
@@ -70,7 +99,7 @@ func translate(schema *Schema) (*relapse.Pattern, error) {
 	if len(schema.Format) > 0 {
 		return nil, fmt.Errorf("format not supported")
 	}
-	return relapse.NewEmptySet(), nil
+	return relapse.NewZAny(), nil
 }
 
 func translates(schemas []*Schema) ([]*relapse.Pattern, error) {
@@ -95,21 +124,6 @@ func translateInstance(schema *Schema) (*relapse.Pattern, error) {
 	}
 	if len(schema.Enum) > 0 {
 		return nil, fmt.Errorf("enum not supported")
-	}
-	if schema.Type != nil {
-		types := *schema.Type
-		if len(types) == 1 {
-			return translateType(types[0])
-		}
-		ps := make([]*relapse.Pattern, len(types))
-		for i := range types {
-			var err error
-			ps[i], err = translateType(types[i])
-			if err != nil {
-				return nil, err
-			}
-		}
-		return relapse.NewOr(ps...), nil
 	}
 	if len(schema.AllOf) > 0 {
 		ps, err := translates(schema.AllOf)
@@ -301,10 +315,10 @@ func translateString(schema String) (*relapse.Pattern, error) {
 	v := funcs.StringVar()
 	list := []funcs.Bool{}
 	if schema.MaxLength != nil {
-		list = append(list, MaxLength(v, *schema.MaxLength))
+		list = append(list, MaxLength(v, int64(*schema.MaxLength)))
 	}
 	if schema.MinLength > 0 {
-		list = append(list, MinLength(v, schema.MinLength))
+		list = append(list, MinLength(v, int64(schema.MinLength)))
 	}
 	if schema.Pattern != nil {
 		list = append(list, funcs.Regex(funcs.StringConst(*schema.Pattern), v))

@@ -97,14 +97,14 @@ func init() {
 	funcs.Register("number", new(number))
 }
 
-func MaxLength(v funcs.String, n uint64) funcs.Bool {
-	return &maxLength{v, funcs.UintConst(n), 0}
+func MaxLength(v funcs.String, n int64) funcs.Bool {
+	return &maxLength{v, funcs.IntConst(n), 0}
 }
 
 type maxLength struct {
 	S funcs.String
-	N funcs.ConstUint
-	n uint64
+	N funcs.ConstInt
+	n int
 }
 
 func (this *maxLength) Init() error {
@@ -112,7 +112,7 @@ func (this *maxLength) Init() error {
 	if err != nil {
 		return err
 	}
-	this.n = n
+	this.n = int(n)
 	return nil
 }
 
@@ -121,21 +121,21 @@ func (this *maxLength) Eval() (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	return len(s) <= int(this.n), nil
+	return len(s) <= this.n, nil
 }
 
 func init() {
 	funcs.Register("maxLength", new(maxLength))
 }
 
-func MinLength(v funcs.String, n uint64) funcs.Bool {
-	return &minLength{v, funcs.UintConst(n), 0}
+func MinLength(v funcs.String, n int64) funcs.Bool {
+	return &minLength{v, funcs.IntConst(n), 0}
 }
 
 type minLength struct {
 	S funcs.String
-	N funcs.ConstUint
-	n uint64
+	N funcs.ConstInt
+	n int
 }
 
 func (this *minLength) Init() error {
@@ -143,7 +143,7 @@ func (this *minLength) Init() error {
 	if err != nil {
 		return err
 	}
-	this.n = n
+	this.n = int(n)
 	return nil
 }
 
@@ -152,7 +152,7 @@ func (this *minLength) Eval() (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	return len(s) >= int(this.n), nil
+	return len(s) >= this.n, nil
 }
 
 func init() {

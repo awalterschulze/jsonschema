@@ -204,9 +204,14 @@ type Schema struct {
 	Array
 	Object
 	Instance
+	Type *Type `json:"type,omitempty"`
 
 	Ref    string `json:"$ref,omitempty"`
 	Format string `json:"format,omitempty"`
+}
+
+func (this Schema) GetType() []SimpleType {
+	return *this.Type
 }
 
 //http://json-schema.org/latest/json-schema-validation.html#anchor13
@@ -295,7 +300,6 @@ type Instance struct {
 	   "uniqueItems": true
 	*/
 	Enum  []interface{} `json:"enum,omitempty"`
-	Type  *Type         `json:"type,omitempty"`
 	AllOf []*Schema     `json:"allOf,omitempty"`
 	AnyOf []*Schema     `json:"anyOf,omitempty"`
 	OneOf []*Schema     `json:"oneOf,omitempty"`
@@ -304,12 +308,8 @@ type Instance struct {
 
 func (this Instance) HasInstanceConstraints() bool {
 	return this.Definitions != nil || this.Enum != nil ||
-		this.Type != nil || this.AllOf != nil || this.AnyOf != nil ||
+		this.AllOf != nil || this.AnyOf != nil ||
 		this.OneOf != nil || this.Not != nil
-}
-
-func (this Instance) GetType() []SimpleType {
-	return *this.Type
 }
 
 /*
