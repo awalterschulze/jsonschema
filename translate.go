@@ -31,9 +31,6 @@ func TranslateDraft4(schema *Schema) (*relapse.Grammar, error) {
 }
 
 func translate(schema *Schema) (*relapse.Pattern, error) {
-	if schema.Type.Single() && schema.Type.HasArray() {
-		return nil, fmt.Errorf("array not supported")
-	}
 	pattern, err := translateOne(schema)
 	if err != nil {
 		return nil, err
@@ -176,17 +173,27 @@ func translateInstance(schema *Schema) (*relapse.Pattern, error) {
 func translateType(typ SimpleType) (*relapse.Pattern, error) {
 	switch typ {
 	case TypeArray:
-		return nil, fmt.Errorf("type array not supported")
+		//this does not distinguish between arrays and objects
+		return combinator.Many(combinator.InAny(combinator.Any())), nil
 	case TypeBoolean:
 		return combinator.Value(funcs.TypeBool(funcs.BoolVar())), nil
 	case TypeInteger:
 		return combinator.Value(funcs.TypeDouble(Integer())), nil
 	case TypeNull:
-		return relapse.NewEmpty(), nil
+		return combinator.Value(funcs.Not(
+			funcs.Or(
+				funcs.TypeDouble(Number()),
+				funcs.Or(
+					funcs.TypeBool(funcs.BoolVar()),
+					funcs.TypeString(funcs.StringVar()),
+				),
+			),
+		)), nil
 	case TypeNumber:
 		return combinator.Value(funcs.TypeDouble(Number())), nil
 	case TypeObject:
-		return nil, fmt.Errorf("type object not supported")
+		//this does not distinguish between arrays and objects
+		return combinator.Many(combinator.InAny(combinator.Any())), nil
 	case TypeString:
 		return combinator.Value(funcs.TypeString(funcs.StringVar())), nil
 	}

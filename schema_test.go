@@ -19,6 +19,7 @@ import (
 	"github.com/katydid/katydid/relapse/interp"
 	"github.com/katydid/katydid/serialize/debug"
 	"github.com/katydid/katydid/serialize/json"
+	"strings"
 	"testing"
 )
 
@@ -45,19 +46,23 @@ var skippingFile = map[string]bool{
 	"maxProperties.json":        true, //known issue?
 	"maxItems.json":             true, //known issue?
 	"refRemote.json":            true, //known issue?
-	"type.json":                 true,
 	"required.json":             true,
 	"ref.json":                  true,
 	"properties.json":           true,
-	"not.json":                  true,
+	"not.json":                  true, //requires properties and type object
 	"items.json":                true,
-	"enum.json":                 true,
+	"enum.json":                 true, //requires properties and type object
 	"dependencies.json":         true,
 	"default.json":              true,
 	"definitions.json":          true,
 	"allOf.json":                true,
 	"additionalProperties.json": true,
 	"additionalItems.json":      true,
+}
+
+var skippingTest = map[string]bool{
+	"type.json:object type matches objects:an array is not an object": true,
+	"type.json:array type matches arrays:an object is not an array":   true,
 }
 
 func TestDraft4(t *testing.T) {
@@ -69,6 +74,10 @@ func TestDraft4(t *testing.T) {
 	p := json.NewJsonParser()
 	for _, test := range tests {
 		if skippingFile[test.Filename] {
+			//t.Logf("--- SKIP: %v", test)
+			continue
+		}
+		if skippingTest[test.String()] {
 			//t.Logf("--- SKIP: %v", test)
 			continue
 		}
@@ -131,12 +140,12 @@ func testDebug(t *testing.T, test Test) {
 	}
 }
 
-// func TestDebug(t *testing.T) {
-// 	tests := buildTests(t)
-// 	for _, test := range tests {
-// 		if test.String() != "zeroTerminatedFloats.json:some languages do not distinguish between different types of numeric value:a float is not an integer even without fractional part" {
-// 			continue
-// 		}
-// 		testDebug(t, test)
-// 	}
-// }
+func TestDebug(t *testing.T) {
+	tests := buildTests(t)
+	for _, test := range tests {
+		if !strings.Contains(test.String(), "type.json:null type matches only the null object:null is null") {
+			continue
+		}
+		testDebug(t, test)
+	}
+}
