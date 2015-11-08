@@ -46,7 +46,6 @@ var skippingFile = map[string]bool{
 	"maxProperties.json":        true, //known issue?
 	"maxItems.json":             true, //known issue?
 	"refRemote.json":            true, //known issue?
-	"required.json":             true,
 	"ref.json":                  true,
 	"properties.json":           true,
 	"items.json":                true,
