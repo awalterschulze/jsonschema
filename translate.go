@@ -71,7 +71,7 @@ func translateOne(schema *Schema) (*relapse.Pattern, error) {
 		return nil, fmt.Errorf("default not supported")
 	}
 	if schema.HasNumericConstraints() {
-		p, err := translateNumeric(schema)
+		p, err := translateNumeric(schema.Numeric)
 		return p, err
 	}
 	if schema.HasStringConstraints() {
@@ -264,36 +264,27 @@ func optional(p *relapse.Pattern) *relapse.Pattern {
 	return relapse.NewOr(relapse.NewEmpty(), p)
 }
 
-func translateNumeric(schema *Schema) (*relapse.Pattern, error) {
+func translateNumeric(schema Numeric) (*relapse.Pattern, error) {
 	v := Number()
-	if schema.Type != nil {
-		if len(*schema.Type) > 1 {
-			return nil, fmt.Errorf("list of types not supported with numeric constraints %#v", schema)
-		}
-		if schema.GetType()[0] == TypeInteger {
-			v = Integer()
-		} else if schema.GetType()[0] != TypeNumber {
-			return nil, fmt.Errorf("%v not supported with numeric constraints", schema.GetType()[0])
-		}
-	}
 	list := []funcs.Bool{}
+	notNum := funcs.Not(funcs.TypeDouble(Number()))
 	if schema.MultipleOf != nil {
 		mult := MultipleOf(v, funcs.DoubleConst(*schema.MultipleOf))
-		list = append(list, mult)
+		list = append(list, funcs.Or(mult, notNum))
 	}
 	if schema.Maximum != nil {
 		lt := funcs.DoubleLE(v, funcs.DoubleConst(*schema.Maximum))
 		if schema.ExclusiveMaximum {
 			lt = funcs.DoubleLt(v, funcs.DoubleConst(*schema.Maximum))
 		}
-		list = append(list, lt)
+		list = append(list, funcs.Or(lt, notNum))
 	}
 	if schema.Minimum != nil {
 		lt := funcs.DoubleGE(v, funcs.DoubleConst(*schema.Minimum))
 		if schema.ExclusiveMinimum {
 			lt = funcs.DoubleGt(v, funcs.DoubleConst(*schema.Minimum))
 		}
-		list = append(list, lt)
+		list = append(list, funcs.Or(lt, notNum))
 	}
 	if len(list) == 0 {
 		return combinator.Value(funcs.TypeDouble(v)), nil
@@ -314,18 +305,18 @@ func and(list []funcs.Bool) funcs.Bool {
 func translateString(schema String) (*relapse.Pattern, error) {
 	v := funcs.StringVar()
 	list := []funcs.Bool{}
+	notStr := funcs.Not(funcs.TypeString(funcs.StringVar()))
 	if schema.MaxLength != nil {
 		ml := MaxLength(v, int64(*schema.MaxLength))
-		notStr := funcs.Not(funcs.TypeString(funcs.StringVar()))
 		list = append(list, funcs.Or(ml, notStr))
 	}
 	if schema.MinLength > 0 {
 		ml := MinLength(v, int64(schema.MinLength))
-		notStr := funcs.Not(funcs.TypeString(funcs.StringVar()))
 		list = append(list, funcs.Or(ml, notStr))
 	}
 	if schema.Pattern != nil {
-		list = append(list, funcs.Regex(funcs.StringConst(*schema.Pattern), v))
+		p := funcs.Regex(funcs.StringConst(*schema.Pattern), v)
+		list = append(list, funcs.Or(p, notStr))
 	}
 	if len(list) == 0 {
 		return combinator.Value(funcs.TypeString(v)), nil
