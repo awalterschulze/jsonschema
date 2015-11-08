@@ -25,6 +25,22 @@ func init() {
 	log.SetFlags(log.Lshortfile)
 }
 
+func ParseSchema(jsonSchema []byte) (*Schema, error) {
+	schema := &Schema{}
+	if err := json.Unmarshal(jsonSchema, schema); err != nil {
+		return nil, err
+	}
+	return schema, nil
+}
+
+func (this *Schema) JsonString() string {
+	data, err := json.Marshal(this)
+	if err != nil {
+		panic(err)
+	}
+	return string(data)
+}
+
 /*
 {
     "id": "http://json-schema.org/draft-04/schema#",
@@ -178,28 +194,28 @@ func init() {
 }
 */
 type Schema struct {
-	Id          *string
-	Schema      *string `json:"$schema"`
-	Title       *string
-	Description *string
-	Default     interface{}
+	Id          string      `json:"id,omitempty"`
+	Schema      string      `json:"$schema,omitempty"`
+	Title       string      `json:"title,omitempty"`
+	Description string      `json:"description,omitempty"`
+	Default     interface{} `json:"default,omitempty"`
 	Numeric
 	String
 	Array
 	Object
 	Instance
 
-	Ref    *string `json:"$ref"`
-	Format *string
+	Ref    string `json:"$ref,omitempty"`
+	Format string `json:"format,omitempty"`
 }
 
 //http://json-schema.org/latest/json-schema-validation.html#anchor13
 type Numeric struct {
-	MultipleOf       *float64
-	Maximum          *float64
-	ExclusiveMaximum bool
-	Minimum          *float64
-	ExclusiveMinimum bool
+	MultipleOf       *float64 `json:"multipleOf,omitempty"`
+	Maximum          *float64 `json:"maximum,omitempty"`
+	ExclusiveMaximum bool     `json:"exclusiveMaximum,omitempty"`
+	Minimum          *float64 `json:"minimum,omitempty"`
+	ExclusiveMinimum bool     `json:"exclusiveMinimum,omitempty"`
 }
 
 func (this Numeric) HasNumericConstraints() bool {
@@ -208,9 +224,9 @@ func (this Numeric) HasNumericConstraints() bool {
 
 //http://json-schema.org/latest/json-schema-validation.html#anchor25
 type String struct {
-	MaxLength *uint64
-	MinLength uint64
-	Pattern   *string
+	MaxLength *uint64 `json:"maxLength,omitempty"`
+	MinLength uint64  `json:"minLength,omitempty"`
+	Pattern   *string `json:"pattern,omitempty"`
 }
 
 func (this String) HasStringConstraints() bool {
@@ -219,11 +235,11 @@ func (this String) HasStringConstraints() bool {
 
 //http://json-schema.org/latest/json-schema-validation.html#anchor36
 type Array struct {
-	AdditionalItems *Additional
-	Items           *Items
-	MaxItems        *uint64
-	MinItems        uint64
-	UniqueItems     bool
+	AdditionalItems *Additional `json:"additionalItems,omitempty"`
+	Items           *Items      `json:"items,omitempty"`
+	MaxItems        *uint64     `json:"maxItems,omitempty"`
+	MinItems        uint64      `json:"minItems,omitempty"`
+	UniqueItems     bool        `json:"uniqueItems,omitempty"`
 }
 
 func (this Array) HasArrayConstraints() bool {
@@ -233,10 +249,10 @@ func (this Array) HasArrayConstraints() bool {
 
 //http://json-schema.org/latest/json-schema-validation.html#anchor53
 type Object struct {
-	MaxProperties        *uint64
-	MinProperties        uint64
-	Required             []string
-	AdditionalProperties *Additional
+	MaxProperties        *uint64     `json:"maxProperties,omitempty"`
+	MinProperties        uint64      `json:"minProperties,omitempty"`
+	Required             []string    `json:"required,omitempty"`
+	AdditionalProperties *Additional `json:"additionalProperties,omitempty"`
 	/*
 	   "type": "object",
 	   "additionalProperties": { "$ref": "#" },
@@ -244,7 +260,7 @@ type Object struct {
 	*/
 	//http://json-schema.org/latest/json-schema-validation.html#anchor64
 	//  The value of "properties" MUST be an object. Each value of this object MUST be an object, and each object MUST be a valid JSON Schema.
-	Properties map[string]*Schema
+	Properties map[string]*Schema `json:"properties,omitempty"`
 	/*
 	   "type": "object",
 	   "additionalProperties": { "$ref": "#" },
@@ -252,8 +268,8 @@ type Object struct {
 	*/
 	//http://json-schema.org/latest/json-schema-validation.html#anchor64
 	//  The value of "patternProperties" MUST be an object. Each property name of this object SHOULD be a valid regular expression, according to the ECMA 262 regular expression dialect. Each property value of this object MUST be an object, and each object MUST be a valid JSON Schema.
-	PatternProperties map[string]*Schema
-	Dependencies      *Dependencies
+	PatternProperties map[string]*Schema `json:"patternProperties,omitempty"`
+	Dependencies      *Dependencies      `json:"dependencies,omitempty"`
 }
 
 func (this Object) HasObjectConstraints() bool {
@@ -272,18 +288,18 @@ type Instance struct {
 	*/
 	//http://json-schema.org/latest/json-schema-validation.html#anchor94
 	//  This keyword's value MUST be an object. Each member value of this object MUST be a valid JSON Schema.
-	Definitions map[string]*Schema
+	Definitions map[string]*Schema `json:"definitions,omitempty"`
 	/*
 	   "type": "array",
 	   "minItems": 1,
 	   "uniqueItems": true
 	*/
-	Enum  []interface{}
-	Type  *Type
-	AllOf []*Schema
-	AnyOf []*Schema
-	OneOf []*Schema
-	Not   *Schema
+	Enum  []interface{} `json:"enum,omitempty"`
+	Type  *Type         `json:"type,omitempty"`
+	AllOf []*Schema     `json:"allOf,omitempty"`
+	AnyOf []*Schema     `json:"anyOf,omitempty"`
+	OneOf []*Schema     `json:"oneOf,omitempty"`
+	Not   *Schema       `json:"not,omitempty"`
 }
 
 func (this Instance) HasInstanceConstraints() bool {

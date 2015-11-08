@@ -15,7 +15,6 @@
 package jsonschema
 
 import (
-	"encoding/json"
 	"fmt"
 	"github.com/katydid/katydid/funcs"
 	"github.com/katydid/katydid/relapse/ast"
@@ -24,11 +23,7 @@ import (
 )
 
 //TODO
-func TranslateDraft4(jsonSchema []byte) (*relapse.Grammar, error) {
-	schema := &Schema{}
-	if err := json.Unmarshal(jsonSchema, schema); err != nil {
-		panic(err)
-	}
+func TranslateDraft4(schema *Schema) (*relapse.Grammar, error) {
 	p, err := translate(schema)
 	if err != nil {
 		return nil, err
@@ -37,7 +32,7 @@ func TranslateDraft4(jsonSchema []byte) (*relapse.Grammar, error) {
 }
 
 func translate(schema *Schema) (*relapse.Pattern, error) {
-	if schema.Id != nil {
+	if len(schema.Id) > 0 {
 		return nil, fmt.Errorf("id not supported")
 	}
 	if schema.Default != nil {
@@ -50,7 +45,10 @@ func translate(schema *Schema) (*relapse.Pattern, error) {
 	}
 	if schema.HasStringConstraints() || (schema.Type.Single() &&
 		schema.Type.HasString()) {
-		p, err := translateString(schema)
+		if schema.Type != nil && len(*schema.Type) > 1 {
+			return nil, fmt.Errorf("list of types not supported with string constraints %#v", schema)
+		}
+		p, err := translateString(schema.String)
 		return p, err
 	}
 	if schema.HasArrayConstraints() || (schema.Type.Single() &&
@@ -66,10 +64,10 @@ func translate(schema *Schema) (*relapse.Pattern, error) {
 		return p, err
 	}
 
-	if schema.Ref != nil {
+	if len(schema.Ref) > 0 {
 		return nil, fmt.Errorf("ref not supported")
 	}
-	if schema.Format != nil {
+	if len(schema.Format) > 0 {
 		return nil, fmt.Errorf("format not supported")
 	}
 	return relapse.NewEmptySet(), nil
@@ -299,16 +297,8 @@ func and(list []funcs.Bool) funcs.Bool {
 	return funcs.And(list[0], and(list[1:]))
 }
 
-func translateString(schema *Schema) (*relapse.Pattern, error) {
+func translateString(schema String) (*relapse.Pattern, error) {
 	v := funcs.StringVar()
-	if schema.Type != nil {
-		if len(*schema.Type) > 1 {
-			return nil, fmt.Errorf("list of types not supported with string constraints %#v", schema)
-		}
-		if schema.GetType()[0] != TypeString {
-			return nil, fmt.Errorf("%v not supported with string constraints", schema.GetType()[0])
-		}
-	}
 	list := []funcs.Bool{}
 	if schema.MaxLength != nil {
 		list = append(list, MaxLength(v, *schema.MaxLength))
