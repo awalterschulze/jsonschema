@@ -1,8 +1,8 @@
-#Translates JsonSchema to Katydid Relapse
+# Translates JsonSchema to Katydid Relapse
 
 No code here yet, only tests
 
-##Known Issues
+## Known Issues
 
 There are quite a few known issues:
   - the uniqueItems keyword is not supported (this does not fit into katydid's theoretical model)
