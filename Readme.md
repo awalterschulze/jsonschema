@@ -1,6 +1,4 @@
-# Translates JsonSchema to Katydid Relapse
-
-No code here yet, only tests
+# Proof of Concept: Translates JsonSchema to Katydid Relapse
 
 ## Known Issues
 
